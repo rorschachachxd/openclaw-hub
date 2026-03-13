@@ -211,8 +211,8 @@ function broadcast(data) {
 function rebuildClients() {
   const a = config.agentA || {}
   const b = config.agentB || {}
-  agentA = new AgentClient({ ip: a.ip || '127.0.0.1', port: a.port || 18789, token: a.token || '', relayPort: a.relayPort || 3001, agentId: a.agentId || 'main' })
-  agentB = new AgentClient({ ip: b.ip || '127.0.0.1', port: b.port || 18789, token: b.token || '', relayPort: b.relayPort || 3001, agentId: b.agentId || 'main' })
+  agentA = new AgentClient({ ip: a.ip || '127.0.0.1', port: a.port || 18789, token: a.token || '', agentId: a.agentId || 'main' })
+  agentB = new AgentClient({ ip: b.ip || '127.0.0.1', port: b.port || 18789, token: b.token || '', agentId: b.agentId || 'main' })
 }
 
 function loadConfig() {

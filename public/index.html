@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenClaw Hub</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 </head>
 <body>
 
@@ -38,18 +40,12 @@
           </div>
         </div>
         <div class="field">
-          <label>Auth Token（本机可留空）</label>
+          <label>Auth Token</label>
           <input id="a-token" type="password" placeholder="Bearer token" />
         </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Relay 端口（远端机器用）</label>
-            <input id="a-relay-port" type="number" value="3001" />
-          </div>
-          <div class="field">
-            <label>Agent ID</label>
-            <input id="a-agent-id" type="text" value="main" />
-          </div>
+        <div class="field" style="max-width:120px">
+          <label>Agent ID</label>
+          <input id="a-agent-id" type="text" value="main" />
         </div>
         <div class="field">
           <label>角色设定（可选 System Prompt）</label>
@@ -76,18 +72,12 @@
           </div>
         </div>
         <div class="field">
-          <label>Auth Token（本机可留空）</label>
+          <label>Auth Token</label>
           <input id="b-token" type="password" placeholder="Bearer token" />
         </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Relay 端口（远端机器用）</label>
-            <input id="b-relay-port" type="number" value="3001" />
-          </div>
-          <div class="field">
-            <label>Agent ID</label>
-            <input id="b-agent-id" type="text" value="main" />
-          </div>
+        <div class="field" style="max-width:120px">
+          <label>Agent ID</label>
+          <input id="b-agent-id" type="text" value="main" />
         </div>
         <div class="field">
           <label>角色设定（可选 System Prompt）</label>

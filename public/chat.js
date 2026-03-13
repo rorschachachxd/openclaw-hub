@@ -43,13 +43,11 @@ function applyConfigToForm(c) {
   $('a-port').value       = a.port      || 18789
   $('a-token').value      = a.token     || ''
   $('a-persona').value    = a.persona   || ''
-  $('a-relay-port').value = a.relayPort || 3001
   $('a-agent-id').value   = a.agentId   || 'main'
   $('b-ip').value         = b.ip        || ''
   $('b-port').value       = b.port      || 18789
   $('b-token').value      = b.token     || ''
   $('b-persona').value    = b.persona   || ''
-  $('b-relay-port').value = b.relayPort || 3001
   $('b-agent-id').value   = b.agentId   || 'main'
   $('max-rounds').value   = c.maxRounds || 10
 }
@@ -61,7 +59,6 @@ function collectConfig() {
       port:      parseInt($('a-port').value) || 18789,
       token:     $('a-token').value.trim(),
       persona:   $('a-persona').value.trim(),
-      relayPort: parseInt($('a-relay-port').value) || 3001,
       agentId:   $('a-agent-id').value.trim() || 'main',
     },
     agentB: {
@@ -69,7 +66,6 @@ function collectConfig() {
       port:      parseInt($('b-port').value) || 18789,
       token:     $('b-token').value.trim(),
       persona:   $('b-persona').value.trim(),
-      relayPort: parseInt($('b-relay-port').value) || 3001,
       agentId:   $('b-agent-id').value.trim() || 'main',
     },
     maxRounds: parseInt($('max-rounds').value) || 10,
@@ -162,21 +158,29 @@ function handleEvent(ev) {
 
     case 'token':
       if (ev.agent === 'A' && currentBubbleA) {
-        currentBubbleA.textContent += ev.token
+        currentBubbleA._rawText = (currentBubbleA._rawText || '') + ev.token
+        currentBubbleA.textContent = currentBubbleA._rawText
         scrollTo(msgA)
       } else if (ev.agent === 'B' && currentBubbleB) {
-        currentBubbleB.textContent += ev.token
+        currentBubbleB._rawText = (currentBubbleB._rawText || '') + ev.token
+        currentBubbleB.textContent = currentBubbleB._rawText
         scrollTo(msgB)
       }
       break
 
     case 'agent-done':
       if (ev.agent === 'A') {
-        if (currentBubbleA) currentBubbleA.classList.remove('streaming')
+        if (currentBubbleA) {
+          currentBubbleA.classList.remove('streaming')
+          renderMarkdown(currentBubbleA, currentBubbleA._rawText || ev.content)
+        }
         setStatus(statusA, '完成', false)
         currentBubbleA = null
       } else {
-        if (currentBubbleB) currentBubbleB.classList.remove('streaming')
+        if (currentBubbleB) {
+          currentBubbleB.classList.remove('streaming')
+          renderMarkdown(currentBubbleB, currentBubbleB._rawText || ev.content)
+        }
         setStatus(statusB, '完成', false)
         currentBubbleB = null
       }
@@ -255,6 +259,18 @@ function addBubble(container, text, classes = '') {
   container.appendChild(div)
   scrollTo(container)
   return div
+}
+
+function renderMarkdown(el, text) {
+  if (!text) return
+  try {
+    const html = DOMPurify.sanitize(marked.parse(text))
+    el.innerHTML = html
+    el.classList.add('markdown')
+    scrollTo(el.parentElement)
+  } catch {
+    el.textContent = text
+  }
 }
 
 function scrollTo(el) {
