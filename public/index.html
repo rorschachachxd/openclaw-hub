@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaw Hub</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <h1>🦞 OpenClaw Hub</h1>
+  <span class="subtitle">双 Agent 对话平台</span>
+  <span class="spacer"></span>
+  <button id="toggle-config">⚙ 配置</button>
+</header>
+
+<div class="layout">
+
+  <!-- ── 配置面板 ────────────────────────────────────────── -->
+  <aside id="config-panel" class="hidden">
+    <div class="config-inner">
+
+      <!-- Agent A -->
+      <div class="config-section">
+        <div class="agent-header">
+          <span class="agent-dot dot-a"></span>
+          <span>Agent A</span>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>IP 地址</label>
+            <input id="a-ip" type="text" placeholder="192.168.1.10" />
+          </div>
+          <div class="field" style="max-width:80px">
+            <label>端口</label>
+            <input id="a-port" type="number" value="18789" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Auth Token（本机可留空）</label>
+          <input id="a-token" type="password" placeholder="Bearer token" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Relay 端口（远端机器用）</label>
+            <input id="a-relay-port" type="number" value="3001" />
+          </div>
+          <div class="field">
+            <label>Agent ID</label>
+            <input id="a-agent-id" type="text" value="main" />
+          </div>
+        </div>
+        <div class="field">
+          <label>角色设定（可选 System Prompt）</label>
+          <textarea id="a-persona" placeholder="你是一个后端架构师，偏向微服务设计…"></textarea>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Agent B -->
+      <div class="config-section">
+        <div class="agent-header">
+          <span class="agent-dot dot-b"></span>
+          <span>Agent B</span>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>IP 地址</label>
+            <input id="b-ip" type="text" placeholder="192.168.1.11" />
+          </div>
+          <div class="field" style="max-width:80px">
+            <label>端口</label>
+            <input id="b-port" type="number" value="18789" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Auth Token（本机可留空）</label>
+          <input id="b-token" type="password" placeholder="Bearer token" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Relay 端口（远端机器用）</label>
+            <input id="b-relay-port" type="number" value="3001" />
+          </div>
+          <div class="field">
+            <label>Agent ID</label>
+            <input id="b-agent-id" type="text" value="main" />
+          </div>
+        </div>
+        <div class="field">
+          <label>角色设定（可选 System Prompt）</label>
+          <textarea id="b-persona" placeholder="你是一个 DevOps 专家，倾向简单部署…"></textarea>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- 全局设置 -->
+      <div class="config-section">
+        <h3>对话设置</h3>
+        <div class="field">
+          <label>最大轮数（防止无限循环）</label>
+          <input id="max-rounds" type="number" value="10" min="1" max="50" />
+        </div>
+      </div>
+
+      <!-- 操作按钮 -->
+      <div class="config-actions">
+        <button class="btn-save" id="save-config">保存配置</button>
+        <button class="btn-test" id="test-conn">连通性测试</button>
+      </div>
+      <div id="test-result" class="test-result" style="display:none"></div>
+
+    </div>
+  </aside>
+
+  <!-- ── 对话区域 ────────────────────────────────────────── -->
+  <div class="chat-area">
+
+    <!-- 三栏 -->
+    <div class="columns">
+
+      <!-- User 栏 -->
+      <div class="column">
+        <div class="col-header">
+          <span class="col-dot" style="background:var(--user)"></span>
+          <span class="label" style="color:var(--user)">User</span>
+        </div>
+        <div class="messages" id="msgs-user"></div>
+      </div>
+
+      <!-- Agent A 栏 -->
+      <div class="column">
+        <div class="col-header">
+          <span class="col-dot dot-a"></span>
+          <span class="label" style="color:var(--accent-a)">Agent A</span>
+          <span class="col-status" id="status-a">待机</span>
+        </div>
+        <div class="messages" id="msgs-a"></div>
+      </div>
+
+      <!-- Agent B 栏 -->
+      <div class="column">
+        <div class="col-header">
+          <span class="col-dot dot-b"></span>
+          <span class="label" style="color:var(--accent-b)">Agent B</span>
+          <span class="col-status" id="status-b">待机</span>
+        </div>
+        <div class="messages" id="msgs-b"></div>
+      </div>
+
+    </div>
+
+    <!-- 输入栏 -->
+    <div class="input-bar">
+      <textarea
+        id="input-box"
+        placeholder="输入消息发送给两个 Agent… (Enter 发送，Shift+Enter 换行)"
+      ></textarea>
+      <div class="input-actions">
+        <button class="btn-send" id="send-btn">发送</button>
+        <button class="btn-stop" id="stop-btn">停止</button>
+        <button class="btn-reset" id="reset-btn">清空</button>
+      </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="statusbar" id="statusbar">等待连接…</div>
+
+  </div>
+</div>
+
+<script src="chat.js"></script>
+</body>
+</html>
