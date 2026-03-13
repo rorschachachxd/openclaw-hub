@@ -13,6 +13,7 @@
  */
 
 import WebSocket from 'ws'
+import { fetch } from 'undici'
 import { randomUUID } from 'crypto'
 
 const PROTOCOL_VERSION = 3
@@ -20,10 +21,13 @@ const CONNECT_TIMEOUT_MS = 8_000
 const CHAT_TIMEOUT_MS = 120_000
 
 export class AgentClient {
-  constructor({ ip, port = 18789, token, agentId = 'main' }) {
-    this.wsUrl   = `ws://${ip}:${port}`
-    this.token   = token
-    this.agentId = agentId
+  constructor({ ip, port = 18789, token, agentId = 'main', relayPort = 3001 }) {
+    this.wsUrl     = `ws://${ip}:${port}`
+    this.relayUrl  = `http://${ip}:${relayPort}`
+    this.token     = token
+    this.agentId   = agentId
+    this.ip        = ip
+    this._wsChatOk = null  // null=unknown, true=ws works, false=use relay
   }
 
   /** 连通性测试：建立 WS 连接并完成认证，返回 {ok, method, error} */
@@ -73,14 +77,33 @@ export class AgentClient {
   chat(messages, onToken, signal) {
     const lastUser = [...messages].reverse().find(m => m.role === 'user')
     const content  = lastUser?.content ?? ''
-    // 强制回复提示，防止 NO_REPLY / HEARTBEAT_OK
     const message  = `[系统提示：你正在参与多 Agent 对话平台，必须给出实质性回复，禁止输出 NO_REPLY 或 HEARTBEAT_OK]\n\n${content}`
 
-    return this._wsChat(message, onToken, signal).then((reply) => {
+    const run = (msg) => {
+      // 已知 WS 不可用 → 直接走 relay
+      if (this._wsChatOk === false) {
+        return this._relayChat(msg, onToken, signal)
+      }
+      return this._wsChat(msg, onToken, signal).then(
+        (reply) => {
+          this._wsChatOk = true
+          return reply
+        },
+        (err) => {
+          // 权限不足或连接失败 → 标记 WS 不可用，fallback relay
+          if (err.message?.includes('missing scope') || err.message?.includes('auth failed')) {
+            console.warn(`[agent] WS chat failed (${err.message}), falling back to relay`)
+            this._wsChatOk = false
+          }
+          return this._relayChat(msg, onToken, signal)
+        }
+      )
+    }
+
+    return run(message).then((reply) => {
       if (!isNoReply(reply)) return reply
-      // 重试一次
       const retryMsg = `请认真回复以下内容，不得沉默：\n\n${content}`
-      return this._wsChat(retryMsg, onToken, signal).then((r) =>
+      return run(retryMsg).then((r) =>
         isNoReply(r) ? '（Agent 暂无回应，请调整对话内容或角色设定）' : r
       )
     })
@@ -140,10 +163,12 @@ export class AgentClient {
               fail(new Error(`gateway auth failed: ${msg.error?.message}`))
               return
             }
-            // 认证成功 → 发送消息
+            // 认证成功 → 记录 chat req id，以便匹配响应
+            const chatId = randomUUID()
+            this._pendingChatId = chatId
             ws.send(JSON.stringify({
               type: 'req',
-              id: randomUUID(),
+              id: chatId,
               method: 'chat.send',
               params: {
                 sessionKey,
@@ -151,6 +176,15 @@ export class AgentClient {
                 idempotencyKey: randomUUID(),
               },
             }))
+            return
+          }
+
+          // chat.send 响应（ok=false 表示权限不足等错误）
+          if (msg.type === 'res' && msg.id === this._pendingChatId) {
+            if (!msg.ok) {
+              fail(new Error(`chat.send failed: ${msg.error?.message ?? JSON.stringify(msg.error)}`))
+            }
+            // ok=true → 消息已被 gateway 接受，等待 agent stream events
             return
           }
 
@@ -197,8 +231,40 @@ export class AgentClient {
         caps: [],
         auth: { token: this.token },
         role: 'operator',
-        scopes: ['operator.admin'],
+        scopes: ['operator.admin', 'operator.write'],
       },
+    }
+  }
+
+  // ── Relay fallback (for remote agents without operator.write scope) ───────────
+
+  async _relayChat(message, onToken, signal) {
+    const url = `${this.relayUrl}/chat`
+    const timeout = AbortSignal.timeout(120_000)
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, agentId: this.agentId }),
+      signal: combined,
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`relay ${res.status}: ${text.slice(0, 200)}`)
+    }
+    const data = await res.json()
+    const text = data.text ?? data.reply ?? JSON.stringify(data)
+    // Simulate streaming for relay responses (word-by-word)
+    await this._simulateStream(text, onToken, signal)
+    return text
+  }
+
+  async _simulateStream(text, onToken, signal) {
+    const chunks = text.match(/\S+\s*/g) ?? [text]
+    for (const chunk of chunks) {
+      if (signal?.aborted) break
+      onToken(chunk)
+      await new Promise(r => setTimeout(r, 0))
     }
   }
 }
