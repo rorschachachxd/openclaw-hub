@@ -295,7 +295,3 @@ PORT=8080 node server.js
 当前版本固定为 A/B 双 Agent 轮流对话，多 Agent 支持在计划中。
 
 ---
-
-## License
-
-MIT
