@@ -133,11 +133,14 @@ export class AgentClient {
 
   async _relayChat(message, signal) {
     const url = `http://${this.ip}:${this.relayPort}/chat`
+    // 合并外部中断信号和 120 秒超时
+    const timeout = AbortSignal.timeout(120_000)
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, agentId: this.agentId }),
-      signal,
+      signal: combined,
     })
     if (!res.ok) {
       const text = await res.text()

@@ -58,10 +58,26 @@ const server = http.createServer((req, res) => {
 
       const proc = spawn('openclaw', ['agent', '--agent', agentId, '-m', message, '--json'])
       let out = ''
+      let responded = false
       proc.stdout.on('data', d => out += d)
       proc.stderr.on('data', () => {})
 
+      // 120 秒超时防止进程挂死
+      const timer = setTimeout(() => {
+        if (!responded) {
+          responded = true
+          proc.kill()
+          setCORS()
+          res.writeHead(504, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'agent timeout (120s)' }))
+          console.log(`[relay] ✗ timeout after 120s`)
+        }
+      }, 120_000)
+
       proc.on('close', (code) => {
+        clearTimeout(timer)
+        if (responded) return
+        responded = true
         setCORS()
         if (code === 0 || out.includes('"status"')) {
           try {
@@ -84,6 +100,9 @@ const server = http.createServer((req, res) => {
       })
 
       proc.on('error', (e) => {
+        clearTimeout(timer)
+        if (responded) return
+        responded = true
         setCORS()
         res.writeHead(500, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ error: e.message }))
