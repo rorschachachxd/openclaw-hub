@@ -71,15 +71,16 @@ export class AgentClient {
 
   _probeLocal() {
     return new Promise((resolve) => {
-      const proc = spawn('openclaw', ['agent', '--agent', this.agentId, '-m', 'ping', '--json'])
+      // 用 health check 替代 agent call，避免触发真实推理导致超时
+      const proc = spawn('openclaw', ['health'])
       let out = ''
       proc.stdout.on('data', d => out += d)
       proc.on('close', code => {
         if (code === 0) resolve({ ok: true, method: 'local-cli' })
-        else resolve({ ok: false, error: `openclaw agent exited ${code}: ${out.slice(0, 200)}` })
+        else resolve({ ok: false, error: `openclaw health failed (${code}): ${out.slice(0, 200)}` })
       })
       proc.on('error', e => resolve({ ok: false, error: e.message }))
-      setTimeout(() => { proc.kill(); resolve({ ok: false, error: 'timeout' }) }, 15000)
+      setTimeout(() => { proc.kill(); resolve({ ok: false, error: 'timeout' }) }, 8000)
     })
   }
 
